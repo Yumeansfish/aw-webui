@@ -123,17 +123,30 @@ export function getTitleAttr(bucket: { type?: string }, e: IEvent) {
   } else if (bucket.type?.startsWith('general.stopwatch')) {
     return e.data.label;
   } else {
-    return e.data.title;
+    const title = e.data.title;
+    if (title && typeof title === 'string') {
+      return title;
+    }
+
+    const keys = Object.keys(e.data);
+    if (keys.length === 1) {
+      const val = e.data[keys[0]];
+      if (typeof val === 'string') {
+        return val.length > 50 ? val.slice(0, 50) : val;
+      }
+    }
+
+    return '';
   }
 }
 
 export function getCategoryColorFromEvent(bucket: IBucket, e: IEvent) {
   if (bucket.type == 'currentwindow') {
-    // NOTE: this will not work/break category rules which reference `$` or `^`
-    return getCategoryColorFromString(e.data.app + ' ' + e.data.title);
+    // using linebreak and "m" regex flag to make `$` and `^` work
+    return getCategoryColorFromString(e.data.app + '\n' + e.data.title);
   } else if (bucket.type == 'web.tab.current') {
-    // NOTE: same as above
-    return getCategoryColorFromString(e.data.title + ' ' + e.data.url);
+    // same as above
+    return getCategoryColorFromString(e.data.title + '\n' + e.data.url);
   } else if (bucket.type == 'afkstatus') {
     return getColorFromString(e.data.status);
   } else if (bucket.type?.startsWith('app.editor')) {
