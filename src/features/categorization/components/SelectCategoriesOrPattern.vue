@@ -1,29 +1,32 @@
-<template lang="pug">
-div
-  // Let the user either choose a mode to use for filtering events.
-  // Either let the user choose which of the existing categories to include, or use a custom regex.
-  b-form-group
-    b-form-select(v-model="mode")
-      option(value="custom") Custom regex
-      option(value="categories") Use existing categories
-
-  // select which categories, by having a form select and a "plus" button to include them
-  b-input-group
-    aw-select-categories(v-if="mode == 'categories'", v-model="filterCategoriesData")
-    b-input(v-if="mode == 'custom'" v-model="pattern" v-on:keyup.enter="generate()" placeholder="Regex pattern to search for")
-    b-input-group-append
-      slot(name="input-group-append")
+<template>
+<div class="space-y-3">
+  <label class="flex flex-col gap-1"><span class="aw-label">Filter mode</span>
+    <select class="aw-select" v-model="mode">
+      <option value="custom">Custom regex</option>
+      <option value="categories">Use existing categories</option>
+    </select>
+  </label>
+  <aw-select-categories v-if="mode == 'categories'" v-model="filterCategoriesData"></aw-select-categories>
+  <div class="flex items-center gap-3" v-else>
+    <input class="aw-input flex-1" v-model="pattern" v-on:keyup.enter="generate()" placeholder="Regex pattern to search for">
+    <slot name="input-group-append"></slot>
+  </div>
+</div>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { useCategoryStore } from '~/stores/categories';
+import { useCategoryStore } from '~/features/categorization/store/categories';
 
 const SEP = ' > ';
 
 export default defineComponent({
   name: 'SelectCategoriesOrPattern',
   props: {
+    modelValue: {
+      type: Array,
+      default: () => [],
+    },
     filterCategories: {
       type: Array,
       default: () => [],
@@ -65,15 +68,25 @@ export default defineComponent({
     },
   },
   watch: {
+    modelValue: {
+      immediate: true,
+      handler(value) {
+        if (Array.isArray(value) && value.length > 0 && Array.isArray(value[0])) {
+          this.filterCategoriesData = value.map(v => (Array.isArray(v) ? v : []));
+        }
+      },
+    },
     filterCategories() {
       this.filterCategoriesData = [...this.filterCategoriesData, ...this.filterCategories];
     },
     filterCategoriesData() {
       this.$emit('input', this.categoriesWithRules);
+      this.$emit('update:modelValue', this.categoriesWithRules);
       console.log(this.categoriesWithRules);
     },
     pattern() {
       this.$emit('input', this.categoriesWithRules);
+      this.$emit('update:modelValue', this.categoriesWithRules);
       console.log(this.categoriesWithRules);
     },
   },

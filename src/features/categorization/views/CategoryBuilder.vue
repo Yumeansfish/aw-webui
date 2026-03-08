@@ -1,142 +1,106 @@
-<template lang="pug">
-div
-  h1 Categorization helper
-  div
-    p
-      | This tool will help you create categories from your uncategorized time.
-
-    p
-      | It works by fetching all uncategorized time for a recent timeperiod,
-      | and then finds the most common words (by time, not count) each of
-      | which may then either be ignored (if too broad/irrelevant), or used
-      | to create a new (sub)category, or to append the word to a pre-existing category rule.
-      | Words with less than 60s of time will not be shown.
-
-    p
-      | When you're done, you can inspect the categories in the #[router-link(:to="{ path: '/settings' }") Settings] page.
-
-
-  div.d-flex
-    div.flex-grow-1
-      div
-        b Options
-      div
-        small Hostname: {{ queryOptions.hostname }}
-      div
-        small Range: {{ queryOptions.start }} - {{ queryOptions.stop }}
-    div.flex-grow-0
-      b-button(variant="outline-dark" @click="show_options = !show_options" size="sm")
-        span(v-if="!show_options") Show options
-        span(v-else) Hide options
-
-  div(v-show="show_options")
-    hr
-    h4 Options
-    aw-query-options(v-model="queryOptions")
-
-  hr
-
-  h5 Common words in "{{category.join(" > ")}}" events
-  div(v-if="loading")
-    | Loading...
-  div(v-else)
-    div(v-if="words_by_duration.length == 0")
-      | No words with significant duration. You're good to go!
-    div(v-else)
-      div.row.category-builder-word(v-for="word in words_by_duration")
-        div.col.hover-highlight
-          div.d-flex.flex-row.py-2
-            div.flex-grow-1
-              | {{ word.word }} ({{ Math.round(word.duration) }}s)
-            div.flex-grow-0
-              b-button.mr-1(size="sm" @click="createRule(word.word)" variant="success")
-                | New rule
-              b-button.mr-1(size="sm" @click="appendRule(word.word)" variant="warning")
-                | Append rule
-              b-button.mr-1(size="sm" @click="ignoreWord(word.word)")
-                | Ignore
-              b-button(size="sm" @click="showEvents(word)" variant="outline-dark")
-                span(v-if="showing_events[0] != word") Show events
-                span(v-else) Hide events
-          div(v-if="showing_events && showing_events[0] == word")
-            table.table.table-sm.table-striped
-              tr
-                th Title
-                th.text-right Duration
-              tr(v-for="event in showing_events[1]")
-                td {{ event.data.title }}
-                td.text-right {{ Math.round(event.duration) }}s
-            hr
-      //hr
-      //div.d-flex
-        div.flex-grow-1
-        div.flex-grow-0
-          b-button(size="sm" @click="days_back += 7; fetchWords()") Load more
-
-  div(v-if="create.categoryId !== null")
-    CategoryEditModal(:categoryId="create.categoryId",
-                      @ok="createRuleOk()"
-                      @hidden="createRuleCancel()")
-
-  app-modal(
-    :open="isAppendRuleOpen"
-    title="Append rule"
-    panel-class="max-w-lg"
-    @update:open="onAppendRuleOpenChange"
-  )
-    div.space-y-4
-      label.flex.flex-col.gap-1.text-sm.font-medium.text-slate-700
-        span Category
-        select#append-category.h-10.w-full.rounded-md.border.border-slate-300.bg-white.px-3.text-sm.text-slate-900.shadow-sm.outline-none.transition(
-          v-model="append.category"
-          class="focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-        )
-          option(v-for="cat in allCategoriesSelect" :value="cat.value" :key="cat.text") {{ cat.text }}
-      label.flex.flex-col.gap-1.text-sm.font-medium.text-slate-700
-        span Word
-        input.h-10.w-full.rounded-md.border.border-slate-300.bg-white.px-3.text-sm.text-slate-900.shadow-sm.outline-none.transition(
-          v-model="append.word"
-          type="text"
-          class="focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-          @keydown.enter.prevent="handleSubmit"
-        )
-      div.text-sm
-        div.text-emerald-600(v-if="validPattern && !broad_pattern") Pattern looks good
-        div.text-rose-600(v-else-if="!validPattern") Invalid pattern
-        div.text-amber-600(v-else) Pattern too broad
-    template(#footer)
-      button.inline-flex.h-9.items-center.justify-center.rounded-md.border.border-slate-300.bg-white.px-4.text-sm.font-medium.text-slate-700.transition(
-        type="button"
-        @click="closeAppendRule"
-        class="hover:bg-slate-100"
-      ) Cancel
-      button.inline-flex.h-9.items-center.justify-center.rounded-md.border.border-slate-900.bg-slate-900.px-4.text-sm.font-medium.text-white.transition(
-        type="button"
-        :disabled="!valid"
-        @click="handleSubmit"
-        class="hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-      ) Append rule
+<template>
+<div class="space-y-6">
+  <h1 class="aw-section-title">Categorization helper</h1>
+  <div class="space-y-3">
+    <p class="aw-caption">This tool will help you create categories from your uncategorized time.</p>
+    <p class="aw-caption">
+      It works by fetching all uncategorized time for a recent timeperiod,
+      and then finds the most common words (by time, not count) each of
+      which may then either be ignored (if too broad/irrelevant), or used
+      to create a new (sub)category, or to append the word to a pre-existing category rule.
+      Words with less than 60s of time will not be shown.
+    </p>
+    <p class="aw-caption">When you're done, you can inspect the categories in the 
+      <router-link class="aw-link" :to="{ path: '/settings' }">Settings</router-link> page.
+    </p>
+  </div>
+  <div class="aw-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="space-y-1">
+      <div class="text-sm font-semibold text-foreground-strong">Options</div>
+      <div class="text-sm text-foreground-muted">Hostname: {{ queryOptions.hostname }}</div>
+      <div class="text-sm text-foreground-muted">Range: {{ queryOptions.start }} - {{ queryOptions.stop }}</div>
+    </div>
+    <button class="aw-btn aw-btn-sm aw-btn-secondary" type="button" @click="show_options = !show_options"><span v-if="!show_options">Show options</span><span v-else>Hide options</span></button>
+  </div>
+  <div class="aw-card-muted" v-show="show_options">
+    <h4 class="aw-subtitle">Options</h4>
+    <aw-query-options v-model="queryOptions"></aw-query-options>
+  </div>
+  <div class="aw-divider"></div>
+  <h5 class="aw-subtitle">Common words in "{{category.join(" > ")}}" events</h5>
+  <div class="aw-empty" v-if="loading">Loading...</div>
+  <div v-else>
+    <div class="aw-empty" v-if="words_by_duration.length == 0">No words with significant duration. You're good to go!</div>
+    <div class="space-y-3" v-else>
+      <div class="aw-card" v-for="word in words_by_duration">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div class="text-sm font-medium text-foreground-strong">{{ word.word }} ({{ Math.round(word.duration) }}s)</div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button class="aw-btn aw-btn-sm aw-btn-success" type="button" @click="createRule(word.word)">New rule</button>
+            <button class="aw-btn aw-btn-sm aw-btn-warning" type="button" @click="appendRule(word.word)">Append rule</button>
+            <button class="aw-btn aw-btn-sm aw-btn-secondary" type="button" @click="ignoreWord(word.word)">Ignore</button>
+            <button class="aw-btn aw-btn-sm aw-btn-outline" type="button" @click="showEvents(word)"><span v-if="showing_events[0] != word">Show events</span><span v-else>Hide events</span></button>
+          </div>
+        </div>
+        <div class="mt-4 overflow-x-auto" v-if="showing_events && showing_events[0] == word">
+          <table class="aw-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th class="text-right">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="event in showing_events[1]">
+                <td>{{ event.data.title }}</td>
+                <td class="text-right">{{ Math.round(event.duration) }}s</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-if="create.categoryId !== null">
+    <CategoryEditModal :categoryId="create.categoryId" @ok="createRuleOk()" @hidden="createRuleCancel()"></CategoryEditModal>
+  </div>
+  <app-modal :open="isAppendRuleOpen" title="Append rule" panel-class="max-w-lg" @update:open="onAppendRuleOpenChange">
+    <div class="space-y-4">
+      <label class="flex flex-col gap-1"><span class="aw-label">Category</span>
+        <select class="aw-select" id="append-category" v-model="append.category">
+          <option v-for="cat in allCategoriesSelect" :value="cat.value" :key="cat.text">{{ cat.text }}</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-1"><span class="aw-label">Word</span>
+        <input class="aw-input" v-model="append.word" type="text" @keydown.enter.prevent="handleSubmit">
+      </label>
+      <div class="text-sm">
+        <div class="text-success" v-if="validPattern && !broad_pattern">Pattern looks good</div>
+        <div class="text-danger" v-else-if="!validPattern">Invalid pattern</div>
+        <div class="text-warning" v-else>Pattern too broad</div>
+      </div>
+    </div>
+    <template #footer>
+      <button class="aw-btn aw-btn-md aw-btn-secondary" type="button" @click="closeAppendRule">Cancel</button>
+      <button class="aw-btn aw-btn-md aw-btn-primary disabled:cursor-not-allowed disabled:opacity-50" type="button" :disabled="!valid" @click="handleSubmit">Append rule</button>
+    </template>
+  </app-modal>
+</div>
 </template>
-
-<style>
-.hover-highlight:hover {
-  background-color: #eee;
-}
-</style>
 
 <script lang="ts">
 import _ from 'lodash';
 import moment from 'moment';
 import { mapState } from 'pinia';
 
-import { useCategoryStore } from '~/stores/categories';
-import { useBucketsStore } from '~/stores/buckets';
+import { useCategoryStore } from '~/features/categorization/store/categories';
+import { useBucketsStore } from '~/features/buckets/store/buckets';
 
-import { canonicalEvents } from '~/queries';
-import { getClient } from '~/util/awclient';
-import CategoryEditModal from '~/components/CategoryEditModal.vue';
-import AppModal from '~/components/ui/AppModal.vue';
-import { isRegexBroad, validateRegex } from '~/util/validate';
+import { canonicalEvents } from '~/app/lib/queries';
+import { getClient } from '~/app/lib/awclient';
+import CategoryEditModal from '~/features/categorization/components/CategoryEditModal.vue';
+import AppModal from '~/shared/ui/AppModal.vue';
+import { isRegexBroad, validateRegex } from '~/shared/lib/validate';
 
 export default {
   name: 'aw-category-builder',
@@ -231,7 +195,7 @@ export default {
           bid_window: 'aw-watcher-window_' + this.queryOptions.hostname,
           bid_afk: 'aw-watcher-afk_' + this.queryOptions.hostname,
           filter_afk: this.queryOptions.filter_afk,
-          categories: this.categoryStore.classes_for_query,
+          categories: this.categoryStore.queryRules,
           filter_categories: [this.category],
         }) + 'RETURN = limit_events(sort_by_duration(events), 1000);';
       const data = await awclient.query(

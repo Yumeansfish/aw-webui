@@ -1,50 +1,55 @@
-<template lang="pug">
-div
-  h5.d-inline-block
-    div Categorization
-  div.float-right
-    b-btn.ml-1(@click="restoreDefaultClasses", variant="outline-warning" size="sm")
-      icon(name="undo")
-      | Restore defaults
-    label.btn.btn-sm.ml-1.btn-outline-primary(style="margin: 0")
-      | Import
-      input(type="file" @change="importCategories" hidden)
-    b-btn.ml-1(@click="exportClasses", variant="outline-primary" size="sm")
-      | Export
-  p
-    | Rules for categorizing events. An event can only have one category. If several categories match, the deepest one will be chosen.
-  p
-    | You can use the #[router-link(:to="{ path: '/settings/category-builder' }") Category Builder] to quickly create categories from uncategorized activity.
-    | You can also find and share categorization rule presets on #[a(href="https://forum.activitywatch.net/c/projects/category-rules") the forum].
-    | For help on how to write categorization rules, see #[a(href="https://docs.activitywatch.net/en/latest/features/categorization.html") the documentation].
-
-  div.my-4
-    b-alert(variant="warning" :show="classes_unsaved_changes")
-      | You have unsaved changes!
-      div.float-right(style="margin-top: -0.15em; margin-right: -0.6em")
-        b-btn.ml-2(@click="saveClasses", variant="success" size="sm")
-          | Save
-        b-btn.ml-2(@click="resetClasses", variant="warning" size="sm")
-          | Discard
-    div(v-for="_class in classes_hierarchy")
-      CategoryEditTree(:_class="_class")
-    div(v-if="editingId !== null")
-      CategoryEditModal(:categoryId='editingId', @hidden="hideEditModal()")
-
-  div.row
-    div.col-sm-12
-      b-btn(@click="addClass")
-        icon.mr-2(name="plus")
-        | Add category
-      b-btn.float-right(@click="saveClasses", variant="success" :disabled="!classes_unsaved_changes")
-        | Save
+<template>
+<div class="space-y-4">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="space-y-1">
+      <h5 class="text-foreground-strong text-lg font-semibold">Categorization</h5>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button class="aw-btn aw-btn-sm aw-btn-warning" type="button" @click="restoreDefaultClasses">
+        <icon name="undo"></icon>Restore defaults
+      </button>
+      <label class="aw-btn aw-btn-sm aw-btn-secondary cursor-pointer">Import
+        <input class="hidden" type="file" @change="importCategories">
+      </label>
+      <button class="aw-btn aw-btn-sm aw-btn-secondary" type="button" @click="exportClasses">Export</button>
+    </div>
+  </div>
+  <p class="aw-caption">Rules for categorizing events. An event can only have one category. If several categories match, the deepest one will be chosen.</p>
+  <p class="aw-caption">You can use the 
+    <router-link :to="{ path: '/settings/category-builder' }">Category Builder</router-link> to quickly create categories from uncategorized activity.
+    You can also find and share categorization rule presets on <a href="https://forum.activitywatch.net/c/projects/category-rules">the forum</a>.
+    For help on how to write categorization rules, see <a href="https://docs.activitywatch.net/en/latest/features/categorization.html">the documentation</a>.
+  </p>
+  <div class="space-y-3">
+    <aw-alert variant="warning" :show="classes_unsaved_changes">
+      <div class="flex items-start justify-between gap-3"><span>You have unsaved changes!</span>
+        <div class="flex items-center gap-2">
+          <button class="aw-btn aw-btn-sm aw-btn-success" type="button" @click="saveClasses"></button>Save
+          <button class="aw-btn aw-btn-sm aw-btn-warning" type="button" @click="resetClasses"></button>Discard
+        </div>
+      </div>
+    </aw-alert>
+    <div v-for="_class in classes_hierarchy">
+      <CategoryEditTree :_class="_class"></CategoryEditTree>
+    </div>
+    <div v-if="editingId !== null">
+      <CategoryEditModal :categoryId="editingId" @hidden="hideEditModal()"></CategoryEditModal>
+    </div>
+  </div>
+  <div class="flex items-center justify-between">
+    <button class="aw-btn aw-btn-md aw-btn-secondary" type="button" @click="addClass">
+      <icon class="mr-2" name="plus"></icon>Add category
+    </button>
+    <button class="aw-btn aw-btn-md aw-btn-success" type="button" @click="saveClasses" :disabled="!classes_unsaved_changes">Save</button>
+  </div>
+</div>
 </template>
 <script lang="ts">
 import { mapState, mapGetters } from 'pinia';
-import CategoryEditTree from '~/components/CategoryEditTree.vue';
-import CategoryEditModal from '~/components/CategoryEditModal.vue';
+import CategoryEditTree from '~/features/categorization/components/CategoryEditTree.vue';
+import CategoryEditModal from '~/features/categorization/components/CategoryEditModal.vue';
 
-import { useCategoryStore } from '~/stores/categories';
+import { useCategoryStore } from '~/features/categorization/store/categories';
 
 import _ from 'lodash';
 

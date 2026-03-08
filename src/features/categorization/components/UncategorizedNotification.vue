@@ -1,18 +1,19 @@
-<template lang="pug">
-div
-  // TODO: Add some way to disable this notification, probably by making the ratio threshold configurable
-  b-alert.my-2(v-if="isVisible", variant="info", show)
-    p.mb-0
-      | #[b High uncategorized time]
-      br
-      | You have a total of {{ friendlyduration(uncategorizedDuration[0] ) }} uncategorized time,
-      | that's {{ Math.round(100 * uncategorizedDuration[0] / uncategorizedDuration[1]) }}% of all time {{ periodText }}.
-      | You can address this by using the #[router-link(:to="{ path: '/settings/category-builder' }") Category Builder].
+<template>
+<div>
+  <!-- TODO: Add some way to disable this notification, probably by making the ratio threshold configurable-->
+  <aw-alert class="my-2" v-if="isVisible" variant="info" show>
+    <p class="mb-0"><b>High uncategorized time</b><br>You have a total of {{ friendlyduration(uncategorizedDuration[0] ) }} uncategorized time,
+      that's {{ Math.round(100 * uncategorizedDuration[0] / uncategorizedDuration[1]) }}% of all time {{ periodText }}.
+      You can address this by using the 
+      <router-link :to="{ path: '/settings/category-builder' }">Category Builder</router-link>.
+    </p>
+  </aw-alert>
+</div>
 </template>
 
 <script lang="ts">
 import { mapState } from 'pinia';
-import { useActivityStore } from '~/stores/activity';
+import { useActivityStore } from '~/features/activity/store/activity';
 
 export default {
   name: 'aw-uncategorized-notification',

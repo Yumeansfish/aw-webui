@@ -1,17 +1,17 @@
 import _ from 'lodash';
 import {
-  saveClasses,
-  loadClasses,
   cleanCategory,
   defaultCategories,
   build_category_hierarchy,
   createMissingParents,
   annotate,
-  Category,
-  Rule,
-} from '~/util/classes';
-import { getColorFromCategory } from '~/util/color';
+} from '~/features/categorization/lib/classes';
+import { loadCategoryClasses, saveCategoryClasses } from '~/features/categorization/lib/categoryPersistence';
+import { toQueryCategoryRules } from '~/features/categorization/lib/categoryRules';
+import { getColorFromCategory } from '~/features/categorization/lib/color';
 import { defineStore } from 'pinia';
+import type { Category } from '~/features/categorization/lib/classes';
+import type { QueryCategoryRule } from '~/features/categorization/lib/categoryRules';
 
 interface State {
   classes: Category[];
@@ -48,12 +48,11 @@ export const useCategoryStore = defineStore('categories', {
       const hier = build_category_hierarchy(_.cloneDeep(this.classes));
       return _.sortBy(hier, [c => c.id || 0]);
     },
-    classes_for_query(): [string[], Rule][] {
-      return this.classes
-        .filter(c => c.rule.type !== null)
-        .map(c => {
-          return [c.name, c.rule];
-        });
+    queryRules(): QueryCategoryRule[] {
+      return toQueryCategoryRules(this.classes);
+    },
+    classes_for_query(): QueryCategoryRule[] {
+      return this.queryRules;
     },
     all_categories(): string[][] {
       // Returns a list of category names (a list of list of strings)
@@ -128,9 +127,9 @@ export const useCategoryStore = defineStore('categories', {
   },
 
   actions: {
-    load(this: State, classes: Category[] = null) {
+    load(this: State, classes: Category[] | null = null) {
       if (classes === null) {
-        classes = loadClasses();
+        classes = loadCategoryClasses();
       }
       classes = createMissingParents(classes);
 
@@ -139,7 +138,7 @@ export const useCategoryStore = defineStore('categories', {
       this.classes_unsaved_changes = false;
     },
     save() {
-      const r = saveClasses(this.classes);
+      const r = saveCategoryClasses(this.classes);
       this.classes_unsaved_changes = false;
       return r;
     },
